@@ -18,7 +18,7 @@ Installation
 Clone the repository:
 bash
 Copy code
-git clone https://github.com/coolkarni987/snake-game-ai.git
+git clone: https://github.com/coolkarni987/sanke-game-with-Ai.git
 cd snake-game-ai
 
 
