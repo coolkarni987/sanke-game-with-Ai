@@ -1,0 +1,169 @@
+import pygame
+import sys
+import heapq
+import random
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+WIDTH, HEIGHT = 600, 600
+GRID_SIZE = 20
+ROWS, COLS = HEIGHT // GRID_SIZE, WIDTH // GRID_SIZE
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+GREEN = (0, 255, 0)
+RED = (255, 0, 0)
+
+# Directions
+DIRECTIONS = {
+    "UP": (0, -1),
+    "DOWN": (0, 1),
+    "LEFT": (-1, 0),
+    "RIGHT": (1, 0),
+}
+
+# Initialize screen
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Snake Game with AI")
+
+# Clock for controlling frame rate
+clock = pygame.time.Clock()
+
+# A* Algorithm
+def heuristic(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+def a_star(start, goal, obstacles):
+    open_set = []
+    heapq.heappush(open_set, (0, start))
+    came_from = {}
+    g_score = {start: 0}
+    f_score = {start: heuristic(start, goal)}
+
+    while open_set:
+        _, current = heapq.heappop(open_set)
+
+        if current == goal:
+            path = []
+            while current in came_from:
+                path.append(current)
+                current = came_from[current]
+            path.reverse()
+            return path
+
+        for direction in DIRECTIONS.values():
+            neighbor = (current[0] + direction[0], current[1] + direction[1])
+
+            if (
+                0 <= neighbor[0] < COLS
+                and 0 <= neighbor[1] < ROWS
+                and neighbor not in obstacles
+            ):
+                tentative_g_score = g_score[current] + 1
+
+                if tentative_g_score < g_score.get(neighbor, float("inf")):
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = tentative_g_score + heuristic(neighbor, goal)
+
+                    if neighbor not in [i[1] for i in open_set]:
+                        heapq.heappush(open_set, (f_score[neighbor], neighbor))
+
+    return []
+
+# Snake and Food
+class SnakeGame:
+    def __init__(self):
+        self.snake = [(10, 10)]
+        self.food = self.spawn_food()
+        self.direction = "UP"
+        self.score = 0
+
+    def spawn_food(self):
+        while True:
+            food = (random.randint(0, COLS - 1), random.randint(0, ROWS - 1))
+            if food not in self.snake:
+                return food
+
+    def move(self):
+        head_x, head_y = self.snake[0]
+        dir_x, dir_y = DIRECTIONS[self.direction]
+        new_head = (head_x + dir_x, head_y + dir_y)
+
+        if (
+            new_head[0] < 0
+            or new_head[0] >= COLS
+            or new_head[1] < 0
+            or new_head[1] >= ROWS
+            or new_head in self.snake
+        ):
+            return False
+
+        self.snake.insert(0, new_head)
+
+        if new_head == self.food:
+            self.food = self.spawn_food()
+            self.score += 1
+        else:
+            self.snake.pop()
+
+        return True
+
+    def update_direction(self, path):
+        if path:
+            next_pos = path[0]
+            current_pos = self.snake[0]
+            dx, dy = next_pos[0] - current_pos[0], next_pos[1] - current_pos[1]
+            for key, value in DIRECTIONS.items():
+                if value == (dx, dy):
+                    self.direction = key
+                    break
+
+    def draw(self):
+        screen.fill(BLACK)
+        for segment in self.snake:
+            pygame.draw.rect(
+                screen,
+                GREEN,
+                (segment[0] * GRID_SIZE, segment[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE),
+            )
+        pygame.draw.rect(
+            screen,
+            RED,
+            (self.food[0] * GRID_SIZE, self.food[1] * GRID_SIZE, GRID_SIZE, GRID_SIZE),
+        )
+        pygame.display.flip()
+
+# Main Loop
+def main():
+    game = SnakeGame()
+    running = True
+
+    while running:
+        clock.tick(10)
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+
+        # AI Pathfinding
+        obstacles = set(game.snake[1:])
+        path = a_star(game.snake[0], game.food, obstacles)
+        game.update_direction(path)
+
+        # Move Snake
+        if not game.move():
+            print(f"Game Over! Your score: {game.score}")
+            running = False
+
+        # Draw
+        game.draw()
+
+    pygame.quit()
+    sys.exit()
+
+if __name__ == "__main__":
+    main()
